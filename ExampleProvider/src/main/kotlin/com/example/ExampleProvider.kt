@@ -3,7 +3,7 @@ package com.example
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 
-class HDFilmCehennemiProvider : MainAPI() {
+class ExampleProvider : MainAPI() {
     override var mainUrl = "https://www.hdfilmcehennemi.nl"
     override var name = "HDFilmCehennemi"
     override val hasMainPage = true
@@ -29,13 +29,14 @@ class HDFilmCehennemiProvider : MainAPI() {
             val posterUrl = element.selectFirst("img")?.attr("data-src") ?: ""
 
             if (title.isNotBlank() && link.isNotBlank()) {
-                val movie = newMovieSearchResponse(title, link, TvType.Movie)
-                movie.posterUrl = posterUrl
+                val movie = newMovieSearchResponse(title, link, TvType.Movie) {
+                    this.posterUrl = posterUrl
+                }
                 home.add(movie)
             }
         }
 
-        return newHomePageResponse(HomePageList(request.name, home))
+        return newHomePageResponse(request.name, home)
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
@@ -49,8 +50,9 @@ class HDFilmCehennemiProvider : MainAPI() {
             val posterUrl = element.selectFirst("img")?.attr("data-src") ?: ""
 
             if (title.isNotBlank() && link.isNotBlank()) {
-                val movie = newMovieSearchResponse(title, link, TvType.Movie)
-                movie.posterUrl = posterUrl
+                val movie = newMovieSearchResponse(title, link, TvType.Movie) {
+                    this.posterUrl = posterUrl
+                }
                 searchResults.add(movie)
             }
         }
@@ -63,10 +65,10 @@ class HDFilmCehennemiProvider : MainAPI() {
         val posterUrl = document.selectFirst("img.poster")?.attr("src")
         val plot = document.selectFirst("div.summary")?.text()
 
-        val response = newMovieLoadResponse(title, url, TvType.Movie, url)
-        response.posterUrl = posterUrl
-        response.plot = plot
-        return response
+        return newMovieLoadResponse(title, url, TvType.Movie, url) {
+            this.posterUrl = posterUrl
+            this.plot = plot
+        }
     }
 
     override suspend fun loadLinks(
