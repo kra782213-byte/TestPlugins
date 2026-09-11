@@ -108,14 +108,15 @@ class ExampleProvider : MainAPI() {
         m3u8Regex.findAll(rawHtml).forEach { match ->
             val videoUrl = match.groupValues[1]
             callback.invoke(
-                ExtractorLink(
-                    name,
-                    name,
-                    videoUrl,
-                    data,
-                    Qualities.Unknown.value,
-                    true
-                )
+                newExtractorLink(
+                    source = name,
+                    name = name,
+                    url = videoUrl,
+                    type = ExtractorLinkType.M3U8
+                ) {
+                    this.referer = data
+                    this.quality = Qualities.Unknown.value
+                }
             )
             foundLinks = true
         }
@@ -123,14 +124,15 @@ class ExampleProvider : MainAPI() {
         mp4Regex.findAll(rawHtml).forEach { match ->
             val videoUrl = match.groupValues[1]
             callback.invoke(
-                ExtractorLink(
-                    name,
-                    name,
-                    videoUrl,
-                    data,
-                    Qualities.Unknown.value,
-                    false
-                )
+                newExtractorLink(
+                    source = name,
+                    name = name,
+                    url = videoUrl,
+                    type = ExtractorLinkType.VIDEO
+                ) {
+                    this.referer = data
+                    this.quality = Qualities.Unknown.value
+                }
             )
             foundLinks = true
         }
@@ -150,14 +152,15 @@ class ExampleProvider : MainAPI() {
             m3u8Regex.findAll(response).forEach { match ->
                 val link = match.groupValues[1]
                 callback.invoke(
-                    ExtractorLink(
-                        name,
-                        "HDFC Özel",
-                        link,
-                        playerUrl,
-                        Qualities.Unknown.value,
-                        true
-                    )
+                    newExtractorLink(
+                        source = name,
+                        name = "HDFC Özel",
+                        url = link,
+                        type = ExtractorLinkType.M3U8
+                    ) {
+                        this.referer = playerUrl
+                        this.quality = Qualities.Unknown.value
+                    }
                 )
             }
         } catch (_: Exception) {}
