@@ -23,7 +23,6 @@ class ExampleProvider : MainAPI() {
         "$mainUrl/kategori/bilim-kurgu/page/" to "Bilim Kurgu Filmleri",
         "$mainUrl/kategori/korku/page/" to "Korku Filmleri",
         "$mainUrl/kategori/komedi/page/" to "Komedi Filmleri",
-        "$mainUrl/kategori/animasyon/page/" to "Animasyon Filmleri"
     )
 
     private fun fixUrlSafe(url: String): String {
