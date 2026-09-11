@@ -5,7 +5,6 @@ package com.example
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import org.jsoup.nodes.Element
-import org.jsoup.Jsoup
 
 class ExampleProvider : MainAPI() {
     override var mainUrl = "https://www.hdfilmcehennemi.nl"
@@ -110,12 +109,12 @@ class ExampleProvider : MainAPI() {
             val videoUrl = match.groupValues[1]
             callback.invoke(
                 ExtractorLink(
-                    source,
+                    name,
                     name,
                     videoUrl,
                     data,
                     Qualities.Unknown.value,
-                    INFER_IS_M3U8
+                    true
                 )
             )
             foundLinks = true
@@ -125,7 +124,7 @@ class ExampleProvider : MainAPI() {
             val videoUrl = match.groupValues[1]
             callback.invoke(
                 ExtractorLink(
-                    source,
+                    name,
                     name,
                     videoUrl,
                     data,
@@ -152,12 +151,12 @@ class ExampleProvider : MainAPI() {
                 val link = match.groupValues[1]
                 callback.invoke(
                     ExtractorLink(
-                        source,
+                        name,
                         "HDFC Özel",
                         link,
                         playerUrl,
                         Qualities.Unknown.value,
-                        INFER_IS_M3U8
+                        true
                     )
                 )
             }
