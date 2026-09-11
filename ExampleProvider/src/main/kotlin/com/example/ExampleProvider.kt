@@ -145,7 +145,7 @@ class ExampleProvider : MainAPI() {
         m3u8Regex.findAll(rawHtml).forEach { match ->
             val videoUrl = match.groupValues[1]
             callback.invoke(
-                newExtractorLink(
+                ExtractorLink(
                     source = name,
                     name = "HDFilmCehennemi M3U8",
                     url = videoUrl,
@@ -160,7 +160,7 @@ class ExampleProvider : MainAPI() {
         mp4Regex.findAll(rawHtml).forEach { match ->
             val videoUrl = match.groupValues[1]
             callback.invoke(
-                newExtractorLink(
+                ExtractorLink(
                     source = name,
                     name = "HDFilmCehennemi MP4",
                     url = videoUrl,
@@ -197,7 +197,7 @@ class ExampleProvider : MainAPI() {
             m3u8Regex.findAll(response).forEach { match ->
                 val link = match.groupValues[1]
                 callback.invoke(
-                    newExtractorLink(
+                    ExtractorLink(
                         source = name,
                         name = "HDFC Özel Oynatıcı",
                         url = link,
@@ -212,7 +212,7 @@ class ExampleProvider : MainAPI() {
             mp4Regex.findAll(response).forEach { match ->
                 val link = match.groupValues[1]
                 callback.invoke(
-                    newExtractorLink(
+                    ExtractorLink(
                         source = name,
                         name = "HDFC Oynatıcı (MP4)",
                         url = link,
