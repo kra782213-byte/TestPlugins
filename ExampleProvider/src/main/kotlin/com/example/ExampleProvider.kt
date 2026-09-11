@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION", "PARAMETER_NAME_CHANGED_ON_OVERRIDE")
+
 package com.example
 
 import com.lagradost.cloudstream3.*
@@ -14,7 +16,6 @@ class ExampleProvider : MainAPI() {
     override val supportedTypes = setOf(TvType.Movie)
 
     // 1. ZENGİNLEŞTİRİLMİŞ KATALOGLAR
-    // HDFilmCehennemi'nin güncel ve çalışan kategori bağlantıları eklendi.
     override val mainPage = mainPageOf(
         "$mainUrl/page/" to "Yeni Eklenen Filmler",
         "$mainUrl/turkce-dublaj-film-izle/page/" to "Türkçe Dublaj Filmler",
@@ -37,14 +38,11 @@ class ExampleProvider : MainAPI() {
 
     // Arama ve Ana Sayfa sonuçlarını işleyen ortak araç
     private fun Element.toSearchResult(): SearchResponse? {
-        // Site tasarımındaki olası tüm başlık etiketleri
         val title = this.selectFirst("h2.title, h3, .poster-title, .title a")?.text() 
             ?: this.attr("title")
         
-        // Bağlantı adresi
         val link = this.selectFirst("a")?.attr("href") ?: this.attr("href")
         
-        // Afiş resmi
         val posterUrl = this.selectFirst("img")?.let {
             it.attr("data-src").ifEmpty { it.attr("src") }
         } ?: ""
@@ -64,7 +62,6 @@ class ExampleProvider : MainAPI() {
         val url = if (page == 1) request.data.substringBeforeLast("page/") else request.data + page
         val document = app.get(url).document
         
-        // Film kartlarını bul
         val home = document.select("div.card-body, div.poster-card-body, a.poster, div.poster, article.card").mapNotNull {
             it.toSearchResult()
         }
@@ -90,7 +87,6 @@ class ExampleProvider : MainAPI() {
             it.attr("data-src").ifEmpty { it.attr("src") }
         } ?: ""
         
-        // Daha geniş özet seçicileri eklendi
         val plot = document.selectFirst("div.summary, div.overview, article.post-content p, div.movie-description")?.text()?.trim()
 
         return newMovieLoadResponse(title, url, TvType.Movie, url) {
@@ -99,7 +95,7 @@ class ExampleProvider : MainAPI() {
         }
     }
 
-    // 5. GİZLİ OYNATICILARI VE VİDEOLARI BULMA (KESİN ÇÖZÜM)
+    // 5. GİZLİ OYNATICILARI VE VİDEOLARI BULMA (GÜNCEL APİ İLE)
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -109,25 +105,23 @@ class ExampleProvider : MainAPI() {
         val document = app.get(data).document
         var foundLinks = false
 
-        // ADIM 1: Sitedeki direk iframe'leri bul (Vidmoly, Closeload vb.)
+        // ADIM 1: Direk iframe'ler
         document.select("iframe[src], iframe[data-src]").forEach { iframe ->
             val src = iframe.attr("data-src").ifEmpty { iframe.attr("src") }
             val fixedSrc = fixUrlSafe(src)
             
             if (fixedSrc.isNotBlank() && !fixedSrc.contains("youtube")) {
                 if (fixedSrc.contains(mainUrl) || fixedSrc.contains("/player/")) {
-                    // Eğer sitenin kendi oynatıcısıysa, içine girip gerçek videoyu çıkart
                     extractInternalPlayer(fixedSrc, data, subtitleCallback, callback)
                     foundLinks = true
                 } else {
-                    // Bulut sağlayıcısıysa Cloudstream'in hazır çözücülerini (Extractor) kullan
                     loadExtractor(fixedSrc, data, subtitleCallback, callback)
                     foundLinks = true
                 }
             }
         }
 
-        // ADIM 2: Butonların veya sekmelerin içine gizlenmiş veri linklerini (data-url) bul
+        // ADIM 2: Gizli veri butonları
         document.select("[data-src], [data-url], [data-video], .server-btn, div.nav-tabs a").forEach { el ->
             val src = el.attr("data-src").ifEmpty { el.attr("data-url") }.ifEmpty { el.attr("data-video") }
             val fixedSrc = fixUrlSafe(src)
@@ -143,7 +137,7 @@ class ExampleProvider : MainAPI() {
             }
         }
 
-        // ADIM 3: Sayfanın kaynak koduna doğrudan gömülü M3U8 veya MP4 varsa Regex ile bul
+        // ADIM 3: Doğrudan gömülü M3U8/MP4 yakalama (newExtractorLink kullanıldı)
         val rawHtml = document.html()
         val m3u8Regex = Regex("['\"](https?://[^'\"]*?\\.m3u8[^'\"]*?)['\"]")
         val mp4Regex = Regex("['\"](https?://[^'\"]*?\\.mp4[^'\"]*?)['\"]")
@@ -151,7 +145,14 @@ class ExampleProvider : MainAPI() {
         m3u8Regex.findAll(rawHtml).forEach { match ->
             val videoUrl = match.groupValues[1]
             callback.invoke(
-                ExtractorLink(name, "HDFilmCehennemi M3U8", videoUrl, data, Qualities.Unknown.value, true)
+                newExtractorLink(
+                    source = name,
+                    name = "HDFilmCehennemi M3U8",
+                    url = videoUrl,
+                    referer = data,
+                    quality = Qualities.Unknown.value,
+                    isM3u8 = true
+                )
             )
             foundLinks = true
         }
@@ -159,7 +160,14 @@ class ExampleProvider : MainAPI() {
         mp4Regex.findAll(rawHtml).forEach { match ->
             val videoUrl = match.groupValues[1]
             callback.invoke(
-                ExtractorLink(name, "HDFilmCehennemi MP4", videoUrl, data, Qualities.Unknown.value, false)
+                newExtractorLink(
+                    source = name,
+                    name = "HDFilmCehennemi MP4",
+                    url = videoUrl,
+                    referer = data,
+                    quality = Qualities.Unknown.value,
+                    isM3u8 = false
+                )
             )
             foundLinks = true
         }
@@ -167,7 +175,6 @@ class ExampleProvider : MainAPI() {
         return foundLinks
     }
 
-    // Sitenin kendi oynatıcısının ("player/index.php") içine sızıp gerçek linki alan fonksiyon
     private suspend fun extractInternalPlayer(
         playerUrl: String, 
         referer: String, 
@@ -175,11 +182,9 @@ class ExampleProvider : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ) {
         try {
-            // Sunucunun bizi engellememesi için "Referer" başlığı gönderiyoruz (ÇOK ÖNEMLİ)
             val response = app.get(playerUrl, headers = mapOf("Referer" to referer)).text
             val doc = Jsoup.parse(response)
 
-            // 1. Oynatıcının içinde başka bir iframe varsa onu çöz
             doc.select("iframe").forEach { iframe ->
                 val src = iframe.attr("src").ifEmpty { iframe.attr("data-src") }
                 val fixedSrc = fixUrlSafe(src)
@@ -188,12 +193,18 @@ class ExampleProvider : MainAPI() {
                 }
             }
 
-            // 2. Oynatıcının javascript kodları içine gömülmüş gizli linkleri çıkart
             val m3u8Regex = Regex("['\"](https?://[^'\"]*?\\.m3u8[^'\"]*?)['\"]")
             m3u8Regex.findAll(response).forEach { match ->
                 val link = match.groupValues[1]
                 callback.invoke(
-                    ExtractorLink(name, "HDFC Özel Oynatıcı", link, playerUrl, Qualities.Unknown.value, true)
+                    newExtractorLink(
+                        source = name,
+                        name = "HDFC Özel Oynatıcı",
+                        url = link,
+                        referer = playerUrl,
+                        quality = Qualities.Unknown.value,
+                        isM3u8 = true
+                    )
                 )
             }
             
@@ -201,11 +212,17 @@ class ExampleProvider : MainAPI() {
             mp4Regex.findAll(response).forEach { match ->
                 val link = match.groupValues[1]
                 callback.invoke(
-                    ExtractorLink(name, "HDFC Oynatıcı (MP4)", link, playerUrl, Qualities.Unknown.value, false)
+                    newExtractorLink(
+                        source = name,
+                        name = "HDFC Oynatıcı (MP4)",
+                        url = link,
+                        referer = playerUrl,
+                        quality = Qualities.Unknown.value,
+                        isM3u8 = false
+                    )
                 )
             }
         } catch (e: Exception) {
-            // Player açılamazsa uygulama çökmesin diye hatayı yutuyoruz
             e.printStackTrace()
         }
     }
