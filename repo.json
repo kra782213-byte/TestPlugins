@@ -1,0 +1,8 @@
+   {
+       "name": "Benim Eklenti Depom",
+       "description": "Kendi hazırladığım Cloudstream eklentileri",
+       "manifestVersion": 1,
+       "pluginLists": [
+           "https://raw.githubusercontent.com/kra782213-byte/TestPlugins/builds/plugins.json"
+       ]
+   }
