@@ -2,7 +2,6 @@ package com.example
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
-import org.jsoup.nodes.Element
 
 class HDFilmCehennemiProvider : MainAPI() {
     override var mainUrl = "https://www.hdfilmcehennemi.nl"
@@ -30,13 +29,13 @@ class HDFilmCehennemiProvider : MainAPI() {
             val posterUrl = element.selectFirst("img")?.attr("data-src") ?: ""
 
             if (title.isNotBlank() && link.isNotBlank()) {
-                home.add(newMovieSearchResponse(title, link, TvType.Movie) {
-                    this.posterUrl = posterUrl
-                })
+                val movie = newMovieSearchResponse(title, link, TvType.Movie)
+                movie.posterUrl = posterUrl
+                home.add(movie)
             }
         }
 
-        return newHomePageResponse(request.name, home)
+        return newHomePageResponse(HomePageList(request.name, home))
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
@@ -50,9 +49,9 @@ class HDFilmCehennemiProvider : MainAPI() {
             val posterUrl = element.selectFirst("img")?.attr("data-src") ?: ""
 
             if (title.isNotBlank() && link.isNotBlank()) {
-                searchResults.add(newMovieSearchResponse(title, link, TvType.Movie) {
-                    this.posterUrl = posterUrl
-                })
+                val movie = newMovieSearchResponse(title, link, TvType.Movie)
+                movie.posterUrl = posterUrl
+                searchResults.add(movie)
             }
         }
         return searchResults
@@ -64,10 +63,10 @@ class HDFilmCehennemiProvider : MainAPI() {
         val posterUrl = document.selectFirst("img.poster")?.attr("src")
         val plot = document.selectFirst("div.summary")?.text()
 
-        return newMovieLoadResponse(title, url, TvType.Movie, url) {
-            this.posterUrl = posterUrl
-            this.plot = plot
-        }
+        val response = newMovieLoadResponse(title, url, TvType.Movie, url)
+        response.posterUrl = posterUrl
+        response.plot = plot
+        return response
     }
 
     override suspend fun loadLinks(
@@ -79,4 +78,3 @@ class HDFilmCehennemiProvider : MainAPI() {
         return true
     }
 }
-
