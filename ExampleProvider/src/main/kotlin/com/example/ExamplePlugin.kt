@@ -7,6 +7,6 @@ import android.content.Context
 @CloudstreamPlugin
 class ExamplePlugin: Plugin() {
     override fun load(context: Context) {
-        registerMainAPI(HDFilmCehennemiProvider())
+        registerMainAPI(ExampleProvider())
     }
 }
