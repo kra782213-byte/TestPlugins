@@ -1,4 +1,4 @@
-@file:Suppress("DEPRECATION", "PARAMETER_NAME_CHANGED_ON_OVERRIDE")
+@file:Suppress("DEPRECATION", "PARAMETER_NAME_CHANGED_ON_OVERRIDE", "UNUSED_PARAMETER")
 
 package com.example
 
@@ -15,20 +15,18 @@ class ExampleProvider : MainAPI() {
     override val hasDownloadSupport = true
     override val supportedTypes = setOf(TvType.Movie)
 
-    // 1. ZENGİNLEŞTİRİLMİŞ KATALOGLAR
     override val mainPage = mainPageOf(
         "$mainUrl/page/" to "Yeni Eklenen Filmler",
         "$mainUrl/turkce-dublaj-film-izle/page/" to "Türkçe Dublaj Filmler",
         "$mainUrl/turkce-altyazili-film-izle/page/" to "Türkçe Altyazılı Filmler",
         "$mainUrl/imdb-7-puan-uzeri-filmler/page/" to "IMDb 7+ Filmler",
-        "$mainUrl/kategori/aksiyon/page/" to "Aksiyon",
-        "$mainUrl/kategori/bilim-kurgu/page/" to "Bilim Kurgu",
-        "$mainUrl/kategori/korku/page/" to "Korku",
-        "$mainUrl/kategori/komedi/page/" to "Komedi",
-        "$mainUrl/kategori/animasyon/page/" to "Animasyon"
+        "$mainUrl/kategori/aksiyon/page/" to "Aksiyon Filmleri",
+        "$mainUrl/kategori/bilim-kurgu/page/" to "Bilim Kurgu Filmleri",
+        "$mainUrl/kategori/korku/page/" to "Korku Filmleri",
+        "$mainUrl/kategori/komedi/page/" to "Komedi Filmleri",
+        "$mainUrl/kategori/animasyon/page/" to "Animasyon Filmleri"
     )
 
-    // URL'leri güvenli hale getiren yardımcı
     private fun fixUrlSafe(url: String): String {
         if (url.isBlank()) return ""
         if (url.startsWith("//")) return "https:$url"
@@ -36,16 +34,10 @@ class ExampleProvider : MainAPI() {
         return url
     }
 
-    // Arama ve Ana Sayfa sonuçlarını işleyen ortak araç
     private fun Element.toSearchResult(): SearchResponse? {
-        val title = this.selectFirst("h2.title, h3, .poster-title, .title a")?.text() 
-            ?: this.attr("title")
-        
+        val title = this.selectFirst("h2.title, h3, .poster-title, .title a")?.text() ?: this.attr("title")
         val link = this.selectFirst("a")?.attr("href") ?: this.attr("href")
-        
-        val posterUrl = this.selectFirst("img")?.let {
-            it.attr("data-src").ifEmpty { it.attr("src") }
-        } ?: ""
+        val posterUrl = this.selectFirst("img")?.let { it.attr("data-src").ifEmpty { it.attr("src") } } ?: ""
 
         if (title.isBlank() || link.isBlank()) return null
 
@@ -54,11 +46,7 @@ class ExampleProvider : MainAPI() {
         }
     }
 
-    // 2. ANA SAYFA ÇEKİMİ
-    override suspend fun getMainPage(
-        page: Int,
-        request: MainPageRequest
-    ): HomePageResponse {
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val url = if (page == 1) request.data.substringBeforeLast("page/") else request.data + page
         val document = app.get(url).document
         
@@ -68,7 +56,6 @@ class ExampleProvider : MainAPI() {
         return newHomePageResponse(request.name, home.distinctBy { it.url })
     }
 
-    // 3. ARAMA FONKSİYONU
     override suspend fun search(query: String): List<SearchResponse> {
         val url = "$mainUrl/arama/$query"
         val document = app.get(url).document
@@ -78,15 +65,12 @@ class ExampleProvider : MainAPI() {
         }.distinctBy { it.url }
     }
 
-    // 4. FİLM DETAYLARI
     override suspend fun load(url: String): LoadResponse {
         val document = app.get(url).document
         val title = document.selectFirst("h1.title, h1, .post-title")?.text()?.trim() ?: "Bilinmeyen Film"
-        
         val poster = document.selectFirst("img.poster, div.card-body img, div.poster img")?.let {
             it.attr("data-src").ifEmpty { it.attr("src") }
         } ?: ""
-        
         val plot = document.selectFirst("div.summary, div.overview, article.post-content p, div.movie-description")?.text()?.trim()
 
         return newMovieLoadResponse(title, url, TvType.Movie, url) {
@@ -95,7 +79,6 @@ class ExampleProvider : MainAPI() {
         }
     }
 
-    // 5. GİZLİ OYNATICILARI VE VİDEOLARI BULMA (GÜNCEL APİ İLE)
     override suspend fun loadLinks(
         data: String,
         isCasting: Boolean,
@@ -105,11 +88,9 @@ class ExampleProvider : MainAPI() {
         val document = app.get(data).document
         var foundLinks = false
 
-        // ADIM 1: Direk iframe'ler
         document.select("iframe[src], iframe[data-src]").forEach { iframe ->
             val src = iframe.attr("data-src").ifEmpty { iframe.attr("src") }
             val fixedSrc = fixUrlSafe(src)
-            
             if (fixedSrc.isNotBlank() && !fixedSrc.contains("youtube")) {
                 if (fixedSrc.contains(mainUrl) || fixedSrc.contains("/player/")) {
                     extractInternalPlayer(fixedSrc, data, subtitleCallback, callback)
@@ -121,23 +102,6 @@ class ExampleProvider : MainAPI() {
             }
         }
 
-        // ADIM 2: Gizli veri butonları
-        document.select("[data-src], [data-url], [data-video], .server-btn, div.nav-tabs a").forEach { el ->
-            val src = el.attr("data-src").ifEmpty { el.attr("data-url") }.ifEmpty { el.attr("data-video") }
-            val fixedSrc = fixUrlSafe(src)
-            
-            if (fixedSrc.isNotBlank() && fixedSrc.startsWith("http") && !fixedSrc.contains("youtube")) {
-                if (fixedSrc.contains(mainUrl) || fixedSrc.contains("/player/")) {
-                    extractInternalPlayer(fixedSrc, data, subtitleCallback, callback)
-                    foundLinks = true
-                } else {
-                    loadExtractor(fixedSrc, data, subtitleCallback, callback)
-                    foundLinks = true
-                }
-            }
-        }
-
-        // ADIM 3: Doğrudan gömülü M3U8/MP4 yakalama (newExtractorLink kullanıldı)
         val rawHtml = document.html()
         val m3u8Regex = Regex("['\"](https?://[^'\"]*?\\.m3u8[^'\"]*?)['\"]")
         val mp4Regex = Regex("['\"](https?://[^'\"]*?\\.mp4[^'\"]*?)['\"]")
@@ -146,12 +110,12 @@ class ExampleProvider : MainAPI() {
             val videoUrl = match.groupValues[1]
             callback.invoke(
                 ExtractorLink(
-                    source = name,
-                    name = "HDFilmCehennemi M3U8",
-                    url = videoUrl,
-                    referer = data,
-                    quality = Qualities.Unknown.value,
-                    isM3u8 = true
+                    source,
+                    name,
+                    videoUrl,
+                    data,
+                    Qualities.Unknown.value,
+                    INFER_IS_M3U8
                 )
             )
             foundLinks = true
@@ -161,12 +125,12 @@ class ExampleProvider : MainAPI() {
             val videoUrl = match.groupValues[1]
             callback.invoke(
                 ExtractorLink(
-                    source = name,
-                    name = "HDFilmCehennemi MP4",
-                    url = videoUrl,
-                    referer = data,
-                    quality = Qualities.Unknown.value,
-                    isM3u8 = false
+                    source,
+                    name,
+                    videoUrl,
+                    data,
+                    Qualities.Unknown.value,
+                    false
                 )
             )
             foundLinks = true
@@ -183,47 +147,20 @@ class ExampleProvider : MainAPI() {
     ) {
         try {
             val response = app.get(playerUrl, headers = mapOf("Referer" to referer)).text
-            val doc = Jsoup.parse(response)
-
-            doc.select("iframe").forEach { iframe ->
-                val src = iframe.attr("src").ifEmpty { iframe.attr("data-src") }
-                val fixedSrc = fixUrlSafe(src)
-                if(fixedSrc.isNotBlank() && !fixedSrc.contains("youtube")) {
-                    loadExtractor(fixedSrc, playerUrl, subtitleCallback, callback)
-                }
-            }
-
             val m3u8Regex = Regex("['\"](https?://[^'\"]*?\\.m3u8[^'\"]*?)['\"]")
             m3u8Regex.findAll(response).forEach { match ->
                 val link = match.groupValues[1]
                 callback.invoke(
                     ExtractorLink(
-                        source = name,
-                        name = "HDFC Özel Oynatıcı",
-                        url = link,
-                        referer = playerUrl,
-                        quality = Qualities.Unknown.value,
-                        isM3u8 = true
+                        source,
+                        "HDFC Özel",
+                        link,
+                        playerUrl,
+                        Qualities.Unknown.value,
+                        INFER_IS_M3U8
                     )
                 )
             }
-            
-            val mp4Regex = Regex("['\"](https?://[^'\"]*?\\.mp4[^'\"]*?)['\"]")
-            mp4Regex.findAll(response).forEach { match ->
-                val link = match.groupValues[1]
-                callback.invoke(
-                    ExtractorLink(
-                        source = name,
-                        name = "HDFC Oynatıcı (MP4)",
-                        url = link,
-                        referer = playerUrl,
-                        quality = Qualities.Unknown.value,
-                        isM3u8 = false
-                    )
-                )
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (_: Exception) {}
     }
 }
